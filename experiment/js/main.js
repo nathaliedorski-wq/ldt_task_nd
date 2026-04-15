@@ -88,7 +88,7 @@ function loadStimuli() {
 /** Preload the distractor video before the experiment begins */
 const preloadTrial = {
   type: jsPsychPreload,
-  video: ["stimuli/background_distractor.mp4"],
+  video: ["stimuli/background_small.mp4"],
 };
 
 /** Welcome / instruction screen */

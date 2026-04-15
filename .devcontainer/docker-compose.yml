@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  # The VS Code dev environment
+  dev-workspace:
+    image: mcr.microsoft.com/devcontainers/javascript-node:20
+    volumes:
+      # Map the local workspace root to /workspace in the container
+      - ..:/workspace:cached
+    # Keeps the container running
+    command: /bin/sh -c "while sleep 1000; do :; done"
+
+  # The JATOS Server
+  jatos:
+    image: jatos/jatos:latest
+    ports:
+      - "9000:9000"
+    volumes:
+      # Persist the JATOS database across rebuilds
+      - jatos-data:/opt/jatos_data/database
+      # Map the workspace root into JATOS's study assets folder so that
+      # the experiment directory is accessible as local-workspace/experiment
+      - ..:/opt/jatos_data/study_assets_root/local-workspace
+
+volumes:
+  jatos-data:
