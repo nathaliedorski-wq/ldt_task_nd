@@ -8,6 +8,7 @@
    Step 1 — Initialise jsPsych and assign participant to a Latin-Square group
    ------------------------------------------------------------------------- */
 const jsPsych = initJsPsych({
+  display_element: 'jspsych-target',
   on_finish: function () {
     // Save data to JATOS if available, otherwise log to console
     if (typeof jatos !== "undefined") {
