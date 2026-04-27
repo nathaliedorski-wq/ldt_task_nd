@@ -39,9 +39,9 @@ const group = (function () {
    Group 2 : Set 1 = BW,     Set 2 = Static, Set 3 = Color
    ------------------------------------------------------------------------- */
 const conditionMap = {
-  0: { "1": "Color",  "2": "BW",     "3": "Static" },
-  1: { "1": "Static", "2": "Color",  "3": "BW"     },
-  2: { "1": "BW",     "2": "Static", "3": "Color"  },
+  0: { "1": "Color", "2": "BW", "3": "Static" },
+  1: { "1": "Static", "2": "Color", "3": "BW" },
+  2: { "1": "BW", "2": "Static", "3": "Color" },
 };
 
 /**
@@ -89,11 +89,12 @@ function loadStimuli() {
    Step 3 — Trial definitions
    ------------------------------------------------------------------------- */
 
-/** Preload the distractor video before the experiment begins */
+/** Preload the distractor video before the experiment begins 
 const preloadTrial = {
   type: jsPsychPreload,
   video: ["stimuli/background_small.mp4"],
 };
+*/
 
 /** Welcome / instruction screen */
 const instructions = {
@@ -174,7 +175,10 @@ function runExperiment(timelineVariables) {
     randomize_order: true,
   };
 
+  /**
   const timeline = [preloadTrial, instructions, ldtProcedure];
+*/
+  const timeline = [instructions, ldtProcedure];
 
   jsPsych.run(timeline);
 }
