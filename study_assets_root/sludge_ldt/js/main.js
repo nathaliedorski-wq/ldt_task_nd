@@ -24,10 +24,13 @@ const jsPsych = initJsPsych({
  * Group assignment (0, 1, or 2) using the JATOS worker ID modulo 3.
  * Falls back to a random assignment when running outside of JATOS.
  */
-const group =
-  typeof jatos !== "undefined"
-    ? parseInt(jatos.workerId, 10) % 3
-    : Math.floor(Math.random() * 3);
+const group = (function () {
+  if (typeof jatos !== "undefined") {
+    const id = parseInt(jatos.workerId, 10);
+    return isNaN(id) ? 0 : id % 3;
+  }
+  return Math.floor(Math.random() * 3);
+}());
 
 /* -------------------------------------------------------------------------
    Step 2 — Latin-Square condition mapping
