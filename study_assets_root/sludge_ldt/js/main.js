@@ -73,7 +73,8 @@ function loadStimuli() {
         const blockMap = {};
         results.data.forEach(function (row) {
           // Use stimulus_list as the block key, fall back to Set
-          const key = String(row["stimulus_list"] || row["Set"]).trim();
+          const rawKey = (row["stimulus_list"] || row["Set"] || "").toString().trim();
+          const key = rawKey || "unknown";
           if (!blockMap[key]) blockMap[key] = [];
 
           const target = row["Target"].trim();
@@ -135,6 +136,9 @@ const fixationTrial = {
  *  1 = correct response
  *  0 = incorrect response
  * -1 = timeout (no response within 2000 ms)
+ *
+ * jsPsych 7 executes trials strictly sequentially, so this variable is
+ * always set by ldtTrial.on_finish before any feedback node reads it.
  */
 let currentTrialCorrect = null;
 
@@ -203,8 +207,8 @@ const correctnessFeedbackNode = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: function () {
       return currentTrialCorrect === 1
-        ? "<p aria-label='Correct' style='color:green; font-size:1.5em;'>Correct</p>"
-        : "<p aria-label='Incorrect' style='color:red; font-size:1.5em;'>Incorrect</p>";
+        ? "<p aria-label='Correct' style='color:green; font-size:1.5em;'>&#10003; Correct</p>"
+        : "<p aria-label='Incorrect' style='color:red; font-size:1.5em;'>&#10007; Incorrect</p>";
     },
     choices: "NO_KEYS",
     trial_duration: function () {
@@ -252,7 +256,8 @@ function runExperiment(blockMap) {
 
   const blockProcedures = blockOrder.map(function (listKey) {
     const items = blockMap[listKey] || [];
-    // All items in a block share the same Condition
+    // All items in a block share the same Condition because stimulus_list
+    // maps 1-to-1 with Set, and Condition is derived solely from Set.
     const condition = items.length > 0 ? items[0].Condition : "Color";
 
     return {
