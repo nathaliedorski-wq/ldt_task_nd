@@ -33,10 +33,12 @@ const group = (function () {
 }());
 
 /* -------------------------------------------------------------------------
-   Step 2 — Latin-Square condition mapping
-   Group 0 : Set 1 = Color,  Set 2 = BW,     Set 3 = Static
-   Group 1 : Set 1 = Static, Set 2 = Color,  Set 3 = BW
-   Group 2 : Set 1 = BW,     Set 2 = Static, Set 3 = Color
+   Step 2 — Latin-Square condition and block-order mappings
+   conditionMap: Set → video condition for each group
+     Group 0 : Set 1 = Color,  Set 2 = BW,     Set 3 = Static
+     Group 1 : Set 1 = Static, Set 2 = Color,  Set 3 = BW
+     Group 2 : Set 1 = BW,     Set 2 = Static, Set 3 = Color
+   blockOrderMap: presentation order of stimulus lists for each group
    ------------------------------------------------------------------------- */
 const conditionMap = {
   0: { "1": "Color", "2": "BW", "3": "Static" },
@@ -44,9 +46,22 @@ const conditionMap = {
   2: { "1": "BW", "2": "Static", "3": "Color" },
 };
 
+// Each row lists the stimulus_list keys in the order they are presented.
+// Latin-square counterbalancing ensures every list appears equally in each position.
+const blockOrderMap = {
+  0: ["1", "2", "3"],
+  1: ["2", "3", "1"],
+  2: ["3", "1", "2"],
+};
+
+/* -------------------------------------------------------------------------
+   Step 3 — Load stimuli and build blocks grouped by stimulus_list
+   ------------------------------------------------------------------------- */
+
 /**
- * Parse the stimuli CSV and build the jsPsych timeline-variable array.
- * Returns a Promise that resolves with the array of timeline variable objects.
+ * Parse the stimuli CSV and return a map of stimulus_list key → trial array.
+ * Falls back to the Set column when stimulus_list is absent.
+ * Returns a Promise that resolves with the blockMap object.
  */
 function loadStimuli() {
   return new Promise(function (resolve, reject) {
@@ -55,13 +70,17 @@ function loadStimuli() {
       header: true,
       skipEmptyLines: true,
       complete: function (results) {
-        const timelineVariables = results.data.map(function (row) {
-          // Trim whitespace from the Target field
+        const blockMap = {};
+        results.data.forEach(function (row) {
+          // Use stimulus_list as the block key, fall back to Set
+          const key = String(row["stimulus_list"] || row["Set"]).trim();
+          if (!blockMap[key]) blockMap[key] = [];
+
           const target = row["Target"].trim();
           const set = String(row["Set"]).trim();
           const condition = conditionMap[group][set] || "Color";
 
-          return {
+          blockMap[key].push({
             // Raw CSV columns preserved for jsPsych data output
             Target: target,
             StimulusType: row["StimulusType"],
@@ -74,9 +93,9 @@ function loadStimuli() {
             Condition: condition,
             // Convenience alias used by the trial stimulus
             stimulus: target,
-          };
+          });
         });
-        resolve(timelineVariables);
+        resolve(blockMap);
       },
       error: function (err) {
         reject(err);
@@ -86,15 +105,8 @@ function loadStimuli() {
 }
 
 /* -------------------------------------------------------------------------
-   Step 3 — Trial definitions
+   Step 4 — Trial definitions
    ------------------------------------------------------------------------- */
-
-/** Preload the distractor video before the experiment begins 
-const preloadTrial = {
-  type: jsPsychPreload,
-  video: ["stimuli/background_small.mp4"],
-};
-*/
 
 /** Welcome / instruction screen */
 const instructions = {
@@ -109,9 +121,26 @@ const instructions = {
   choices: "ALL_KEYS",
 };
 
+/** 250 ms fixation / gaze target shown before each word */
+const fixationTrial = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: "<p style='font-size:2em;'>+</p>",
+  choices: "NO_KEYS",
+  trial_duration: 250,
+};
+
 /**
- * Build the LDT trial object.
- * Timeline variables are resolved at runtime by jsPsych.
+ * Tracks the outcome of the most recent LDT trial so feedback trials can
+ * read it without relying on jsPsych data timing.
+ *  1 = correct response
+ *  0 = incorrect response
+ * -1 = timeout (no response within 2000 ms)
+ */
+let currentTrialCorrect = null;
+
+/**
+ * Main LDT trial.
+ * Times out after 2000 ms; accuracy is coded as 1 / 0 / -1.
  */
 const ldtTrial = {
   type: jsPsychHtmlKeyboardResponse,
@@ -119,6 +148,7 @@ const ldtTrial = {
     return jsPsych.timelineVariable("stimulus");
   },
   choices: ["z", "m"],
+  trial_duration: 2000,
   // Carry all item metadata into the jsPsych data store
   data: function () {
     return {
@@ -133,53 +163,109 @@ const ldtTrial = {
       group: group,
     };
   },
-  // Manipulate the background video as soon as the trial DOM is ready
-  on_load: function () {
-    const video = document.getElementById("distractor-video");
-    if (!video) return;
-
-    const condition = jsPsych.timelineVariable("Condition");
-
-    if (condition === "Color") {
-      video.style.filter = "";
-      video.currentTime = 0;
-      video.play();
-    } else if (condition === "BW") {
-      video.style.filter = "grayscale(100%)";
-      video.currentTime = 0;
-      video.play();
-    } else if (condition === "Static") {
-      video.style.filter = "";
-      video.currentTime = 0;
-      video.pause();
-    }
-  },
-  // Mark whether the response was correct
+  // Code accuracy and update the shared feedback variable
   on_finish: function (data) {
-    data.correct = data.response === data.corr_ans;
+    if (data.response === null) {
+      data.correct = -1; // timeout
+    } else {
+      data.correct = data.response === data.corr_ans ? 1 : 0;
+    }
+    currentTrialCorrect = data.correct;
   },
 };
 
 /* -------------------------------------------------------------------------
-   Step 4 — Assemble timeline and run
+   Step 5 — Feedback trial definitions
    ------------------------------------------------------------------------- */
 
 /**
- * Build the full timeline once stimuli are loaded, then start jsPsych.
- * Accepts the parsed timeline-variable array as its argument.
+ * "Too slow!" feedback — shown for 1000 ms only when the trial timed out.
+ * Wrapped in a timeline node so conditional_function can gate it.
  */
-function runExperiment(timelineVariables) {
-  const ldtProcedure = {
-    timeline: [ldtTrial],
-    timeline_variables: timelineVariables,
-    randomize_order: true,
-  };
+const timeoutFeedbackNode = {
+  timeline: [{
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: "<p style='color:red; font-size:1.5em;'>Too slow!</p>",
+    choices: "NO_KEYS",
+    trial_duration: 1000,
+  }],
+  conditional_function: function () {
+    return currentTrialCorrect === -1;
+  },
+};
 
-  /**
-  const timeline = [preloadTrial, instructions, ldtProcedure];
-*/
-  const timeline = [instructions, ldtProcedure];
+/**
+ * Correct / Incorrect feedback — shown only when a response was given.
+ * Duration: 100 ms for correct, 500 ms for incorrect.
+ */
+const correctnessFeedbackNode = {
+  timeline: [{
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: function () {
+      return currentTrialCorrect === 1
+        ? "<p aria-label='Correct' style='color:green; font-size:1.5em;'>Correct</p>"
+        : "<p aria-label='Incorrect' style='color:red; font-size:1.5em;'>Incorrect</p>";
+    },
+    choices: "NO_KEYS",
+    trial_duration: function () {
+      return currentTrialCorrect === 1 ? 100 : 500;
+    },
+  }],
+  conditional_function: function () {
+    return currentTrialCorrect !== -1;
+  },
+};
 
+/* -------------------------------------------------------------------------
+   Step 6 — Assemble timeline and run
+   ------------------------------------------------------------------------- */
+
+/**
+ * Apply the video condition for the given condition string.
+ * Called once at the start of each block.
+ */
+function applyVideoCondition(condition) {
+  const video = document.getElementById("distractor-video");
+  if (!video) return;
+  if (condition === "Color") {
+    video.style.filter = "";
+    video.currentTime = 0;
+    video.play();
+  } else if (condition === "BW") {
+    video.style.filter = "grayscale(100%)";
+    video.currentTime = 0;
+    video.play();
+  } else if (condition === "Static") {
+    video.style.filter = "";
+    video.currentTime = 0;
+    video.pause();
+  }
+}
+
+/**
+ * Build the full timeline once stimuli are loaded, then start jsPsych.
+ * One randomised procedure is created per block; the video condition is
+ * switched once at the start of each block via on_timeline_start.
+ */
+function runExperiment(blockMap) {
+  const blockOrder = blockOrderMap[group];
+
+  const blockProcedures = blockOrder.map(function (listKey) {
+    const items = blockMap[listKey] || [];
+    // All items in a block share the same Condition
+    const condition = items.length > 0 ? items[0].Condition : "Color";
+
+    return {
+      timeline: [fixationTrial, ldtTrial, timeoutFeedbackNode, correctnessFeedbackNode],
+      timeline_variables: items,
+      randomize_order: true,
+      on_timeline_start: function () {
+        applyVideoCondition(condition);
+      },
+    };
+  });
+
+  const timeline = [instructions].concat(blockProcedures);
   jsPsych.run(timeline);
 }
 
