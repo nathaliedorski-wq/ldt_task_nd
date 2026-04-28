@@ -24,18 +24,16 @@ const jsPsych = initJsPsych({
    Step 2 — Group assignment (6 groups: 3 condition rotations × 2 key maps)
 
    conditionGroup (0–2): which Latin-square rotation maps stimulus sets to
-                         distractor conditions (item-level counterbalancing).
+                         distractor conditions (item-level counterbalancing)
+                         and which order the blocks are presented.
    keyAssign      (0–1): which physical key is designated "word".
      0 → M = word,  Z = non-word   (default)
      1 → Z = word,  M = non-word   (swapped)
 
-   Condition order experienced per group (blocks always presented Set 1→2→3):
-     group 0 (cg 0, key A): Color  → BW     → Static
-     group 1 (cg 1, key A): Static → Color  → BW
-     group 2 (cg 2, key A): BW     → Static → Color
-     group 3 (cg 0, key B): Color  → BW     → Static
-     group 4 (cg 1, key B): Static → Color  → BW
-     group 5 (cg 2, key B): BW     → Static → Color
+   Condition sequence per conditionGroup (block order driven by blockOrderMap):
+     conditionGroup 0: list 1 = Color,  list 2 = BW,     list 3 = Static
+     conditionGroup 1: list 1 = Static, list 2 = Color,  list 3 = BW
+     conditionGroup 2: list 1 = BW,     list 2 = Static, list 3 = Color
    Each condition appears in each block position exactly twice across all 6
    groups, and each stimulus set appears in each condition exactly twice.
    ------------------------------------------------------------------------- */
@@ -52,7 +50,7 @@ const group = (function () {
   return Math.floor(Math.random() * 6);
 }());
 
-const conditionGroup = group % 3;            // 0, 1, or 2
+const conditionGroup = group % 3;             // 0, 1, or 2
 const keyAssign      = Math.floor(group / 3); // 0 or 1
 
 /**
@@ -66,11 +64,12 @@ const keyMap = {
 };
 
 /* -------------------------------------------------------------------------
-   Step 3 — Latin-Square condition mapping (indexed by conditionGroup)
-
-   conditionGroup 0 : Set 1 = Color,  Set 2 = BW,     Set 3 = Static
-   conditionGroup 1 : Set 1 = Static, Set 2 = Color,  Set 3 = BW
-   conditionGroup 2 : Set 1 = BW,     Set 2 = Static, Set 3 = Color
+   Step 3 — Latin-Square condition and block-order mappings
+   conditionMap: Set → video condition, indexed by conditionGroup
+     conditionGroup 0 : Set 1 = Color,  Set 2 = BW,     Set 3 = Static
+     conditionGroup 1 : Set 1 = Static, Set 2 = Color,  Set 3 = BW
+     conditionGroup 2 : Set 1 = BW,     Set 2 = Static, Set 3 = Color
+   blockOrderMap: presentation order of stimulus lists, indexed by conditionGroup
    ------------------------------------------------------------------------- */
 const CONDITION_MAPS = [
   { "1": "Color",  "2": "BW",     "3": "Static" },
@@ -79,18 +78,29 @@ const CONDITION_MAPS = [
 ];
 const conditionMap = CONDITION_MAPS[conditionGroup];
 
+// Each row lists the stimulus_list keys in the order they are presented.
+// Latin-square counterbalancing ensures every list appears equally in each position.
+const blockOrderMap = {
+  0: ["1", "2", "3"],
+  1: ["2", "3", "1"],
+  2: ["3", "1", "2"],
+};
+
 /* -------------------------------------------------------------------------
-   Step 4 — Load stimuli
+   Step 4 — Load stimuli and build blocks grouped by stimulus_list
    ------------------------------------------------------------------------- */
 
 /**
  * Parse the stimuli CSV, derive the participant-specific condition and
- * correct-response key for every item, and return a Promise resolving with
- * an object mapping Set key ("1"/"2"/"3") to its array of trial variables.
+ * correct-response key for every item, and return a map of
+ * stimulus_list key → trial array.
  *
+ * Falls back to the Set column when stimulus_list is absent.
  * corr_ans is computed from StimulusType + keyMap so that it always reflects
  * the physically correct key for this participant's key assignment, regardless
  * of the values stored in the CSV.
+ *
+ * Returns a Promise that resolves with the blockMap object.
  */
 function loadStimuli() {
   return new Promise(function (resolve, reject) {
@@ -99,19 +109,24 @@ function loadStimuli() {
       header: true,
       skipEmptyLines: true,
       complete: function (results) {
-        const bySet = { "1": [], "2": [], "3": [] };
-
+        const blockMap = {};
         results.data.forEach(function (row) {
-          const target    = row["Target"].trim();
-          const set       = String(row["Set"]).trim();
-          const stimType  = row["StimulusType"].trim();
+          // Use stimulus_list as the block key, fall back to Set
+          const rawKey = (row["stimulus_list"] || row["Set"] || "").toString().trim();
+          const key = rawKey || "unknown";
+          if (!blockMap[key]) blockMap[key] = [];
+
+          const target   = row["Target"].trim();
+          const set      = String(row["Set"]).trim();
+          const stimType = row["StimulusType"].trim();
           const condition = conditionMap[set] || "Color";
 
           // Derive the correct answer from the stimulus type and the current
           // key map, so corr_ans is always the right physical key.
           const corrAns = stimType === "WORD" ? keyMap.word : keyMap.nonword;
 
-          const item = {
+          blockMap[key].push({
+            // Raw CSV columns preserved for jsPsych data output
             Target:        target,
             StimulusType:  stimType,
             WordFrequency: row["WordFrequency"],
@@ -119,16 +134,13 @@ function loadStimuli() {
             stimulus_list: row["stimulus_list"],
             ItemID:        row["ItemID"],
             Set:           set,
+            // Derived condition for the current participant
             Condition:     condition,
+            // Convenience alias used by the trial stimulus
             stimulus:      target,
-          };
-
-          if (bySet[set]) {
-            bySet[set].push(item);
-          }
+          });
         });
-
-        resolve(bySet);
+        resolve(blockMap);
       },
       error: function (err) {
         reject(err);
@@ -154,8 +166,29 @@ const instructions = {
   choices: "ALL_KEYS",
 };
 
+/** 500 ms fixation / gaze target shown before each word */
+const fixationTrial = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: "<p style='font-size:2em;'>+</p>",
+  choices: "NO_KEYS",
+  trial_duration: 500,
+};
+
 /**
- * Single LDT trial — timeline variables are resolved at runtime by jsPsych.
+ * Tracks the outcome of the most recent LDT trial so feedback trials can
+ * read it without relying on jsPsych data timing.
+ *  1 = correct response
+ *  0 = incorrect response
+ * -1 = timeout (no response within 2000 ms)
+ *
+ * jsPsych 7 executes trials strictly sequentially, so this variable is
+ * always set by ldtTrial.on_finish before any feedback node reads it.
+ */
+let currentTrialCorrect = null;
+
+/**
+ * Main LDT trial.
+ * Times out after 2000 ms; accuracy is coded as 1 / 0 / -1.
  */
 const ldtTrial = {
   type: jsPsychHtmlKeyboardResponse,
@@ -163,6 +196,7 @@ const ldtTrial = {
     return jsPsych.timelineVariable("stimulus");
   },
   choices: [keyMap.word, keyMap.nonword],
+  trial_duration: 2000,
   // Carry all item metadata and counterbalancing info into the data store
   data: function () {
     return {
@@ -181,67 +215,123 @@ const ldtTrial = {
       nonwordKey:     keyMap.nonword,
     };
   },
-  // Manipulate the background video as soon as the trial DOM is ready
-  on_load: function () {
-    const video = document.getElementById("distractor-video");
-    if (!video) return;
-
-    const condition = jsPsych.timelineVariable("Condition");
-
-    if (condition === "Color") {
-      video.style.filter = "";
-      video.currentTime = 0;
-      video.play();
-    } else if (condition === "BW") {
-      video.style.filter = "grayscale(100%)";
-      video.currentTime = 0;
-      video.play();
-    } else if (condition === "Static") {
-      video.style.filter = "";
-      video.currentTime = 0;
-      video.pause();
-    }
-  },
-  // Mark whether the response was correct
+  // Code accuracy and update the shared feedback variable
   on_finish: function (data) {
-    data.correct = data.response === data.corr_ans;
+    if (data.response === null) {
+      data.correct = -1; // timeout
+    } else {
+      data.correct = data.response === data.corr_ans ? 1 : 0;
+    }
+    currentTrialCorrect = data.correct;
   },
 };
 
 /* -------------------------------------------------------------------------
-   Step 6 — Assemble timeline and run
+   Step 6 — Feedback trial definitions
    ------------------------------------------------------------------------- */
 
 /**
- * Build the full timeline from stimuli grouped by set, then start jsPsych.
+ * "Too slow!" feedback — shown for 1000 ms only when the trial timed out.
+ * Wrapped in a timeline node so conditional_function can gate it.
+ */
+const timeoutFeedbackNode = {
+  timeline: [{
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: "<p style='color:red; font-size:1.5em;'>Too slow!</p>",
+    choices: "NO_KEYS",
+    trial_duration: 1000,
+  }],
+  conditional_function: function () {
+    return currentTrialCorrect === -1;
+  },
+};
+
+/**
+ * Correct / Incorrect feedback — shown only when a response was given.
+ * Duration: 200 ms for correct, 500 ms for incorrect.
+ */
+const correctnessFeedbackNode = {
+  timeline: [{
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: function () {
+      return currentTrialCorrect === 1
+        ? "<p aria-label='Correct' style='color:green; font-size:1.5em;'>&#10003;</p>"
+        : "<p aria-label='Incorrect' style='color:red; font-size:1.5em;'>&#10007;</p>";
+    },
+    choices: "NO_KEYS",
+    trial_duration: function () {
+      return currentTrialCorrect === 1 ? 200 : 500;
+    },
+  }],
+  conditional_function: function () {
+    return currentTrialCorrect !== -1;
+  },
+};
+
+/* -------------------------------------------------------------------------
+   Step 7 — Assemble timeline and run
+   ------------------------------------------------------------------------- */
+
+/**
+ * Apply the video condition for the given condition string.
+ * Called once at the start of each block via on_timeline_start.
+ */
+function applyVideoCondition(condition) {
+  const video = document.getElementById("distractor-video");
+  if (!video) return;
+  if (condition === "Color") {
+    video.style.filter = "";
+    video.currentTime = 0;
+    video.play();
+  } else if (condition === "BW") {
+    video.style.filter = "grayscale(100%)";
+    video.currentTime = 0;
+    video.play();
+  } else if (condition === "Static") {
+    video.style.filter = "";
+    video.currentTime = 0;
+    video.pause();
+  }
+}
+
+/**
+ * Build the full timeline once stimuli are loaded, then start jsPsych.
+ * One randomised procedure is created per block; the video condition is
+ * switched once at the start of each block via on_timeline_start.
  *
- * The experiment is structured into three sequential blocks (one per stimulus
- * set, presented in order Set 1 → Set 2 → Set 3).  Trials are randomised
- * within each block.  Because the conditionMap rotates which condition is
- * associated with each set, the order of conditions experienced by the
- * participant varies across groups while every set appears in every condition
- * equally often across the six counterbalancing groups.
+ * Block presentation order is determined by blockOrderMap[conditionGroup],
+ * so both the condition assigned to each stimulus set and the order in which
+ * blocks are seen vary across the six counterbalancing groups.
  *
  * Simulation mode: append ?simulate=1 to the URL to run the experiment
  * automatically without any participant input (uses jsPsych's built-in
  * data-only simulation).  Useful for automated testing.
+ * jsPsych.simulate() accepts two mode strings:
+ *   "data-only" — runs without rendering; fastest for automated testing
+ *   "visual"    — renders each trial but drives interactions programmatically
  */
-function runExperiment(bySet) {
-  // One procedure node per set; trials randomised within each block
-  const blocks = ["1", "2", "3"].map(function (setKey) {
+function runExperiment(blockMap) {
+  const blockOrder = blockOrderMap[conditionGroup];
+
+  const blockProcedures = blockOrder.map(function (listKey) {
+    const items = blockMap[listKey] || [];
+    // All items in a block share the same Condition because stimulus_list
+    // maps 1-to-1 with Set, and Condition is derived solely from Set.
+    const condition = items.length > 0 ? items[0].Condition : "Color";
+
     return {
-      timeline: [ldtTrial],
-      timeline_variables: bySet[setKey],
+      timeline: [fixationTrial, ldtTrial, timeoutFeedbackNode, correctnessFeedbackNode],
+      timeline_variables: items,
       randomize_order: true,
+      on_timeline_start: function () {
+        applyVideoCondition(condition);
+      },
     };
   });
 
-  const timeline = [instructions, ...blocks];
+  const timeline = [instructions].concat(blockProcedures);
 
-  // Activate simulation mode with ?simulate=1 in the URL.
-  // jsPsych.simulate() accepts two mode strings:
-  //   "data-only" — runs without rendering; fastest for automated testing
-  //   "visual"    — renders each trial but drives interactions programmatically
+  // Activate simulation mode with ?simulate=1 in the URL
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get("simulate") === "1") {
     jsPsych.simulate(timeline, "data-only");
@@ -251,7 +341,7 @@ function runExperiment(bySet) {
 }
 
 /* -------------------------------------------------------------------------
-   Step 7 — Entry point
+   Step 8 — Entry point
    ------------------------------------------------------------------------- */
 
 /**
