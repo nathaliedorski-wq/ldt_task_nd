@@ -121,6 +121,7 @@ function loadStimuli() {
       skipEmptyLines: true,
       complete: function (results) {
         const blockMap = {};
+        try {
         results.data.forEach(function (row) {
           // Use stimulus_list as the block key, fall back to Set
           const rawKey = (row["stimulus_list"] || row["Set"] || "").toString().trim();
@@ -134,7 +135,19 @@ function loadStimuli() {
 
           // Derive the correct answer from the stimulus type and the current
           // key map, so corr_ans is always the right physical key.
-          const corrAns = stimType === "WORD" ? keyMap.word : keyMap.nonword;
+          // Reject unknown StimulusType values immediately so CSV data errors
+          // are caught early rather than silently mis-scored as nonwords.
+          let corrAns;
+          if (stimType === "WORD") {
+            corrAns = keyMap.word;
+          } else if (stimType === "NONWORD") {
+            corrAns = keyMap.nonword;
+          } else {
+            throw new Error(
+              "Unknown StimulusType \"" + stimType + "\" for Target \"" + target +
+              "\" (ItemID: " + row["ItemID"] + "). Expected \"WORD\" or \"NONWORD\"."
+            );
+          }
 
           blockMap[key].push({
             // Raw CSV columns preserved for jsPsych data output
@@ -155,6 +168,10 @@ function loadStimuli() {
             stimulus:      target,
           });
         });
+        } catch (err) {
+          reject(err);
+          return;
+        }
         resolve(blockMap);
       },
       error: function (err) {
