@@ -207,7 +207,7 @@ const ldtTrial = {
     return jsPsych.timelineVariable("stimulus");
   },
   choices: [keyMap.word, keyMap.nonword],
-  trial_duration: 2000,
+  trial_duration: 2000, // 2000 ms to respond; no response → timeout (correct = -1)
   // Carry all item metadata and counterbalancing info into the data store
   data: function () {
     return {
