@@ -127,7 +127,7 @@ const fixationTrial = {
   type: jsPsychHtmlKeyboardResponse,
   stimulus: "<p style='font-size:2em;'>+</p>",
   choices: "NO_KEYS",
-  trial_duration: 250,
+  trial_duration: 500,
 };
 
 /**
@@ -200,19 +200,19 @@ const timeoutFeedbackNode = {
 
 /**
  * Correct / Incorrect feedback — shown only when a response was given.
- * Duration: 100 ms for correct, 500 ms for incorrect.
+ * Duration: 200 ms for correct, 500 ms for incorrect.
  */
 const correctnessFeedbackNode = {
   timeline: [{
     type: jsPsychHtmlKeyboardResponse,
     stimulus: function () {
       return currentTrialCorrect === 1
-        ? "<p aria-label='Correct' style='color:green; font-size:1.5em;'>&#10003; Correct</p>"
-        : "<p aria-label='Incorrect' style='color:red; font-size:1.5em;'>&#10007; Incorrect</p>";
+        ? "<p aria-label='Correct' style='color:green; font-size:1.5em;'>&#10003;</p>"
+        : "<p aria-label='Incorrect' style='color:red; font-size:1.5em;'>&#10007;</p>";
     },
     choices: "NO_KEYS",
     trial_duration: function () {
-      return currentTrialCorrect === 1 ? 100 : 500;
+      return currentTrialCorrect === 1 ? 200 : 500;
     },
   }],
   conditional_function: function () {
