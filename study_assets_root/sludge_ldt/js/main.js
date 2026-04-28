@@ -238,7 +238,10 @@ function runExperiment(bySet) {
 
   const timeline = [instructions, ...blocks];
 
-  // Activate simulation mode with ?simulate=1 in the URL
+  // Activate simulation mode with ?simulate=1 in the URL.
+  // jsPsych.simulate() accepts two mode strings:
+  //   "data-only" — runs without rendering; fastest for automated testing
+  //   "visual"    — renders each trial but drives interactions programmatically
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get("simulate") === "1") {
     jsPsych.simulate(timeline, "data-only");
