@@ -23,19 +23,22 @@ const jsPsych = initJsPsych({
 /* -------------------------------------------------------------------------
    Step 2 — Group assignment (6 groups: 3 condition rotations × 2 key maps)
 
-   conditionGroup (0–2): which Latin-square rotation maps stimulus sets to
-                         distractor conditions (item-level counterbalancing)
-                         and which order the blocks are presented.
+   conditionGroup (0–2): which Latin-square rotation maps stimulus lists to
+                         distractor conditions (item-level counterbalancing).
    keyAssign      (0–1): which physical key is designated "word".
      0 → M = word,  Z = non-word   (default)
      1 → Z = word,  M = non-word   (swapped)
 
-   Condition sequence per conditionGroup (block order driven by blockOrderMap):
-     conditionGroup 0: list 1 = Color,  list 2 = BW,     list 3 = Static
-     conditionGroup 1: list 1 = Static, list 2 = Color,  list 3 = BW
-     conditionGroup 2: list 1 = BW,     list 2 = Static, list 3 = Color
-   Each condition appears in each block position exactly twice across all 6
-   groups, and each stimulus set appears in each condition exactly twice.
+   Condition sequence actually experienced per group:
+     group 0 (cg 0, key A): Color  → BW     → Static
+     group 1 (cg 1, key A): BW     → Static → Color
+     group 2 (cg 2, key A): Static → Color  → BW
+     group 3 (cg 0, key B): Static → Color  → BW
+     group 4 (cg 1, key B): Color  → BW     → Static
+     group 5 (cg 2, key B): BW     → Static → Color
+   Across all 6 groups, every (set × condition) pair appears 2×, every
+   (condition × block-position) pair appears 2×, every (list × position)
+   pair appears 2×, and each key assignment covers exactly 3 groups.
    ------------------------------------------------------------------------- */
 
 /**
@@ -69,7 +72,10 @@ const keyMap = {
      conditionGroup 0 : Set 1 = Color,  Set 2 = BW,     Set 3 = Static
      conditionGroup 1 : Set 1 = Static, Set 2 = Color,  Set 3 = BW
      conditionGroup 2 : Set 1 = BW,     Set 2 = Static, Set 3 = Color
-   blockOrderMap: presentation order of stimulus lists, indexed by conditionGroup
+   blockOrderMap: presentation order of stimulus lists, indexed by group (0-5)
+   The blockOrderMap is designed so that combined with conditionMap it achieves
+   full balance: each condition in each position 2×, each list in each position
+   2×, each list in each condition 2× (see group comment above for sequences).
    ------------------------------------------------------------------------- */
 const CONDITION_MAPS = [
   { "1": "Color",  "2": "BW",     "3": "Static" },
@@ -78,12 +84,17 @@ const CONDITION_MAPS = [
 ];
 const conditionMap = CONDITION_MAPS[conditionGroup];
 
-// Each row lists the stimulus_list keys in the order they are presented.
-// Latin-square counterbalancing ensures every list appears equally in each position.
+// Indexed by group (0–5). Each row is the order in which stimulus lists
+// ("1"/"2"/"3") are presented.  Together with conditionMap this ensures
+// every condition appears in every block-position exactly twice and every
+// list appears in every block-position exactly twice.
 const blockOrderMap = {
-  0: ["1", "2", "3"],
-  1: ["2", "3", "1"],
-  2: ["3", "1", "2"],
+  0: ["1", "2", "3"],  // group 0 (cg0, ka0): Color  → BW     → Static
+  1: ["3", "1", "2"],  // group 1 (cg1, ka0): BW     → Static → Color
+  2: ["2", "3", "1"],  // group 2 (cg2, ka0): Static → Color  → BW
+  3: ["3", "1", "2"],  // group 3 (cg0, ka1): Static → Color  → BW
+  4: ["2", "3", "1"],  // group 4 (cg1, ka1): Color  → BW     → Static
+  5: ["1", "2", "3"],  // group 5 (cg2, ka1): BW     → Static → Color
 };
 
 /* -------------------------------------------------------------------------
@@ -299,9 +310,11 @@ function applyVideoCondition(condition) {
  * One randomised procedure is created per block; the video condition is
  * switched once at the start of each block via on_timeline_start.
  *
- * Block presentation order is determined by blockOrderMap[conditionGroup],
- * so both the condition assigned to each stimulus set and the order in which
- * blocks are seen vary across the six counterbalancing groups.
+ * Block presentation order is determined by blockOrderMap[group], which
+ * combines with conditionMap to give fully balanced counterbalancing: every
+ * condition appears in every block position 2×, every stimulus list appears
+ * in every condition 2×, and every list appears in every block position 2×
+ * across the six counterbalancing groups.
  *
  * Simulation mode: append ?simulate=1 to the URL to run the experiment
  * automatically without any participant input (uses jsPsych's built-in
@@ -311,7 +324,7 @@ function applyVideoCondition(condition) {
  *   "visual"    — renders each trial but drives interactions programmatically
  */
 function runExperiment(blockMap) {
-  const blockOrder = blockOrderMap[conditionGroup];
+  const blockOrder = blockOrderMap[group];
 
   const blockProcedures = blockOrder.map(function (listKey) {
     const items = blockMap[listKey] || [];
