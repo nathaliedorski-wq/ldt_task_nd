@@ -142,7 +142,11 @@ function loadStimuli() {
             StimulusType:  stimType,
             WordFrequency: row["WordFrequency"],
             corr_ans:      corrAns,
-            stimulus_list: row["stimulus_list"],
+            // Use the derived key so downstream data always has a value even
+            // when the CSV omits the stimulus_list column (falls back to Set).
+            stimulus_list: key,
+            // Preserve the original CSV value for reference; undefined when absent.
+            stimulus_list_csv: row["stimulus_list"],
             ItemID:        row["ItemID"],
             Set:           set,
             // Derived condition for the current participant
@@ -214,9 +218,10 @@ const ldtTrial = {
       Target:        jsPsych.timelineVariable("Target"),
       StimulusType:  jsPsych.timelineVariable("StimulusType"),
       WordFrequency: jsPsych.timelineVariable("WordFrequency"),
-      corr_ans:      jsPsych.timelineVariable("corr_ans"),
-      stimulus_list: jsPsych.timelineVariable("stimulus_list"),
-      ItemID:        jsPsych.timelineVariable("ItemID"),
+      corr_ans:          jsPsych.timelineVariable("corr_ans"),
+      stimulus_list:     jsPsych.timelineVariable("stimulus_list"),
+      stimulus_list_csv: jsPsych.timelineVariable("stimulus_list_csv"),
+      ItemID:            jsPsych.timelineVariable("ItemID"),
       Set:           jsPsych.timelineVariable("Set"),
       Condition:     jsPsych.timelineVariable("Condition"),
       group:          group,
