@@ -9,6 +9,8 @@ services:
       - ..:/workspace:cached
     # Keeps the container running
     command: /bin/sh -c "while sleep 1000; do :; done"
+    depends_on:
+      - jatos
 
   # The JATOS Server
   jatos:
@@ -16,12 +18,11 @@ services:
     user: "root"
     ports:
       - "9000:9000"
+    environment:
+      # Ensures JATOS uses the default local file-based database
+      - JATOS_DB_DRIVER=org.h2.Driver
     volumes:
-      # Persist the JATOS database across rebuilds
-      - jatos-data:/opt/jatos_data/database
-      # Map the workspace root into JATOS's study assets folder so that
-      # the experiment directory is accessible as local-workspace/experiment
-      - ../study_assets_root:/opt/jatos_data/study_assets_root
-     
-volumes:
-  jatos-data:
+      # CORRECTED: Internal paths are now properly set to /opt/jatos_data/...
+      - ../jatos_data/database:/opt/jatos_data/database
+      - ../jatos_data/study_assets_root:/opt/jatos_data/study_assets_root
+    restart: unless-stopped

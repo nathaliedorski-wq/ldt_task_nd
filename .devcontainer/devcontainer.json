@@ -1,20 +1,14 @@
 {
     "name": "JATOS Dev Environment",
     "dockerComposeFile": "docker-compose.yml",
-    "service": "dev-workspace",
+    "service": "dev-workspace", 
     "workspaceFolder": "/workspace",
-    "forwardPorts": [9000],
-    "portsAttributes": {
-        "9000": {
-            "label": "JATOS Server",
-            "onAutoForward": "notify"
-        }
-    },
     "customizations": {
         "vscode": {
             "extensions": [
                 "dbaeumer.vscode-eslint",
-                "esbenp.prettier-vscode"
+                "esbenp.prettier-vscode",
+                "ms-python.python" 
             ]
         }
     }
