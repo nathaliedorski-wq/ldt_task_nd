@@ -217,6 +217,7 @@ const fixationTrial = {
  * always set by ldtTrial.on_finish before any feedback node reads it.
  */
 let currentTrialCorrect = null;
+let errorCountInBlock = 0; // track consecutive errors to decide when to show key reminder
 
 /**
  * Main LDT trial.
@@ -232,20 +233,20 @@ const ldtTrial = {
   // Carry all item metadata and counterbalancing info into the data store
   data: function () {
     return {
-      Target:        jsPsych.timelineVariable("Target"),
-      StimulusType:  jsPsych.timelineVariable("StimulusType"),
-      WordFrequency: jsPsych.timelineVariable("WordFrequency"),
+      Target:            jsPsych.timelineVariable("Target"),
+      StimulusType:      jsPsych.timelineVariable("StimulusType"),
+      WordFrequency:     jsPsych.timelineVariable("WordFrequency"),
       corr_ans:          jsPsych.timelineVariable("corr_ans"),
       stimulus_list:     jsPsych.timelineVariable("stimulus_list"),
       stimulus_list_csv: jsPsych.timelineVariable("stimulus_list_csv"),
       ItemID:            jsPsych.timelineVariable("ItemID"),
-      Set:           jsPsych.timelineVariable("Set"),
-      Condition:     jsPsych.timelineVariable("Condition"),
-      group:          group,
-      conditionGroup: conditionGroup,
-      keyAssign:      keyAssign,
-      wordKey:        keyMap.word,
-      nonwordKey:     keyMap.nonword,
+      Set:               jsPsych.timelineVariable("Set"),
+      Condition:         jsPsych.timelineVariable("Condition"),
+      group:             group,
+      conditionGroup:    conditionGroup,
+      keyAssign:         keyAssign,
+      wordKey:           keyMap.word,
+      nonwordKey:        keyMap.nonword,
     };
   },
   // Code accuracy and update the shared feedback variable
@@ -264,15 +265,26 @@ const ldtTrial = {
    ------------------------------------------------------------------------- */
 
 /**
- * "Too slow!" feedback — shown for 1000 ms only when the trial timed out.
+ * "Too slow!" feedback — shown when the trial timed out.
+ * Includes a reminder of the key assignment.
  * Wrapped in a timeline node so conditional_function can gate it.
  */
 const timeoutFeedbackNode = {
   timeline: [{
     type: jsPsychHtmlKeyboardResponse,
-    stimulus: "<p style='color:red; font-size:1.5em;'>Too slow!</p>",
+    stimulus: function() {
+      return `
+        <div style="height: 400px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+          <div style="color:red; font-size:2.5em; font-weight: bold;">Too slow!</div>
+          <div style="margin-top: 150px; color: #888; font-size: 1em;">
+            Reminder: <strong>${keyMap.word.toUpperCase()}</strong> = Word,
+            <strong>${keyMap.nonword.toUpperCase()}</strong> = Non-word
+          </div>
+        </div>
+      `;
+    },
     choices: "NO_KEYS",
-    trial_duration: 1000,
+    trial_duration: 1500,
   }],
   conditional_function: function () {
     return currentTrialCorrect === -1;
@@ -281,19 +293,38 @@ const timeoutFeedbackNode = {
 
 /**
  * Correct / Incorrect feedback — shown only when a response was given.
- * Duration: 200 ms for correct, 500 ms for incorrect.
+ * Duration: 200 ms for correct, 1200 ms for incorrect.
+ * After 3 or more consecutive errors, also shows a key assignment reminder.
  */
 const correctnessFeedbackNode = {
   timeline: [{
     type: jsPsychHtmlKeyboardResponse,
     stimulus: function () {
-      return currentTrialCorrect === 1
-        ? "<p aria-label='Correct' style='color:green; font-size:1.5em;'>&#10003;</p>"
-        : "<p aria-label='Incorrect' style='color:red; font-size:1.5em;'>&#10007;</p>";
+      if (currentTrialCorrect === 1) {
+        errorCountInBlock = 0; // Reset counter on correct answer
+        return "<p style='color:green; font-size:4em;'>&#10003;</p>";
+      } else {
+        errorCountInBlock++; // Increment on error
+
+        // Show hint only if they have made 3 or more consecutive errors
+        const showHint = errorCountInBlock >= 3;
+
+        return `
+          <div style="height: 400px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <div style="color:red; font-size:4em;">&#10007;</div>
+            ${showHint ? `
+              <div style="margin-top: 150px; color: #888; font-size: 1.2em;">
+                Reminder: <strong>${keyMap.word.toUpperCase()}</strong> = Word,
+                <strong>${keyMap.nonword.toUpperCase()}</strong> = Non-word
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }
     },
     choices: "NO_KEYS",
     trial_duration: function () {
-      return currentTrialCorrect === 1 ? 200 : 500;
+      return currentTrialCorrect === 1 ? 200 : 1200;
     },
   }],
   conditional_function: function () {
@@ -302,7 +333,22 @@ const correctnessFeedbackNode = {
 };
 
 /* -------------------------------------------------------------------------
-   Step 7 — Assemble timeline and run
+   Step 7 — Break screen between blocks
+   ------------------------------------------------------------------------- */
+const blockBreak = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `
+    <div style="max-width: 600px; margin: auto; line-height: 1.8;">
+      <h2 style="margin-bottom: 40px;">Break</h2>
+      <p style="margin-bottom: 25px;">You have finished a block. Take a short break if you need to.</p>
+      <p>Press any key to continue to the next part.</p>
+    </div>
+  `,
+  choices: "ALL_KEYS",
+};
+
+/* -------------------------------------------------------------------------
+   Step 8 — Assemble timeline and run
    ------------------------------------------------------------------------- */
 
 /**
@@ -328,9 +374,10 @@ function applyVideoCondition(condition) {
 }
 
 /**
- * Build the full timeline once stimuli are loaded, then start jsPsych.
+ * Build the full experiment timeline once stimuli are loaded, then start jsPsych.
  * One randomised procedure is created per block; the video condition is
  * switched once at the start of each block via on_timeline_start.
+ * A self-paced break screen is inserted between blocks (but not after the last).
  *
  * Block presentation order is determined by blockOrderMap[group], which
  * combines with conditionMap to give fully balanced counterbalancing: every
@@ -347,24 +394,32 @@ function applyVideoCondition(condition) {
  */
 function runExperiment(blockMap) {
   const blockOrder = blockOrderMap[group];
+  const timeline = [instructions];
 
-  const blockProcedures = blockOrder.map(function (listKey) {
+  blockOrder.forEach(function (listKey, index) {
     const items = blockMap[listKey] || [];
     // All items in a block share the same Condition because stimulus_list
     // maps 1-to-1 with Set, and Condition is derived solely from Set.
     const condition = items.length > 0 ? items[0].Condition : "Color";
 
-    return {
+    const blockProcedure = {
       timeline: [fixationTrial, ldtTrial, timeoutFeedbackNode, correctnessFeedbackNode],
       timeline_variables: items,
       randomize_order: true,
       on_timeline_start: function () {
         applyVideoCondition(condition);
+        errorCountInBlock = 0; // Reset consecutive error counter at start of each block
       },
     };
-  });
 
-  const timeline = [instructions].concat(blockProcedures);
+    // Add the block of trials
+    timeline.push(blockProcedure);
+
+    // Add break after block 1 and 2, but not after the 3rd (last) block
+    if (index < blockOrder.length - 1) {
+      timeline.push(blockBreak);
+    }
+  });
 
   // Activate simulation mode with ?simulate=1 in the URL
   const urlParams = new URLSearchParams(window.location.search);
@@ -376,7 +431,7 @@ function runExperiment(blockMap) {
 }
 
 /* -------------------------------------------------------------------------
-   Step 8 — Entry point
+   Step 9 — Entry point
    ------------------------------------------------------------------------- */
 
 /**
