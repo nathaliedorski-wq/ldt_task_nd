@@ -1,24 +1,14 @@
 /* =========================================================================
    Lexical Decision Task — main.js
-   Requires: jsPsych v7, @jspsych/plugin-html-keyboard-response,
-             @jspsych/plugin-preload, PapaParse, (optional) jatos.js
+   Requires: jsPsych v7, @jspsych/plugin-html-keyboard-response, @jspych/chinrest-plugin
+             @jspsych/plugin-preload, @jspsych/psychophysics-plugin, PapaParse, (optional) jatos.js
    ========================================================================= */
 
 /* -------------------------------------------------------------------------
-   Step 1 — Initialise jsPsych
+   Step 1 — Initialise jsPsych + add global variable to store physical scaling 
    ------------------------------------------------------------------------- */
-//const jsPsych = initJsPsych({
-//  display_element: 'jspsych-target',
-//  on_finish: function () {
-    // Save data to JATOS if available, otherwise log to console
-//    if (typeof jatos !== "undefined") {
-//      jatos.submitResultData(jsPsych.data.get().csv(), jatos.startNextComponent);
-//    } else {
-//      console.log("Experiment finished. Data:");
-//      console.log(jsPsych.data.get().csv());
-//    }
-//  },
-//});
+let px2deg = 1;
+
 const jsPsych = initJsPsych({
   display_element: 'jspsych-target',
   on_finish: function () {
@@ -112,9 +102,25 @@ const blockOrderMap = {
   4: ["2", "3", "1"],  // group 4 (cg1, ka1): Color  → BW     → Static
   5: ["1", "2", "3"],  // group 5 (cg2, ka1): BW     → Static → Color
 };
+/* -------------------------------------------------------------------------
+   Step 4 — Virtual Chinrest Definition
+   ------------------------------------------------------------------------- */
+
+
+const chinrest = {
+  type: jsPsychVirtualChinrest,
+  blindspot_reps: 3,
+  resize_units: "none", 
+  pixels_per_unit: 100,
+  on_finish: function(data) {
+    px2deg = data.px2deg;
+    console.log("Measured px2deg:", px2deg);
+  }
+};
+
 
 /* -------------------------------------------------------------------------
-   Step 4 — Load stimuli and build blocks grouped by stimulus_list
+   Step 6 — Load stimuli and build blocks grouped by stimulus_list
    ------------------------------------------------------------------------- */
 
 /**
@@ -129,9 +135,7 @@ const blockOrderMap = {
  *
  * Returns a Promise that resolves with the blockMap object.
  */
-/* -------------------------------------------------------------------------
-   Step 4 — Load stimuli (Updated to take a URL)
-   ------------------------------------------------------------------------- */
+
 function loadStimuli(url) { // Added 'url' here
   return new Promise(function (resolve, reject) {
     Papa.parse(url, { // Changed the hardcoded path to 'url'
@@ -201,28 +205,45 @@ function loadStimuli(url) { // Added 'url' here
 }
 
 /* -------------------------------------------------------------------------
-   Step 5 — Trial definitions
+   Step 7 — Trial definitions
    ------------------------------------------------------------------------- */
 
 /** Welcome / instruction screen — shows the participant's actual key assignment */
 const instructions = {
   type: jsPsychHtmlKeyboardResponse,
-  stimulus: `
-    <p>In this task you will see a word appear on the screen.</p>
-    <p>Press <strong>${keyMap.word.toUpperCase()}</strong> if it is a <strong>real word</strong>.</p>
-    <p>Press <strong>${keyMap.nonword.toUpperCase()}</strong> if it is <strong>NOT a real word</strong>.</p>
-    <p>Respond as quickly and accurately as possible.</p>
-    <p>Press any key to begin.</p>
-  `,
+  stimulus: function() {
+    return `
+    <div style="background: rgba(0,0,0,0.8); padding: 40px; border-radius: 15px; max-width: 700px;">
+
+      <p>In this task you will see a word appear on the screen.</p>
+      <p>Press <strong>${keyMap.word.toUpperCase()}</strong> if it is a <strong>real word</strong>.</p>
+      <p>Press <strong>${keyMap.nonword.toUpperCase()}</strong> if it is <strong>NOT a real word</strong>.</p>
+      <p>Respond as quickly and accurately as possible.</p>
+      <p>Press any key to begin.</p>
+    </div>
+  `;
+  },
   choices: "ALL_KEYS",
 };
 
 /** 500 ms fixation / gaze target shown before each word */
 const fixationTrial = {
-  type: jsPsychHtmlKeyboardResponse,
-  stimulus: "<p style='font-size:2em;'>+</p>",
+  type: jsPsychPsychophysics,
+  canvas_width: 1000,
+  canvas_height: 600,
+  background_color: 'rgba(0,0,0,0)',
+  stimuli: [
+    {
+      obj_type: 'text',
+      content: '+',
+      font: function() { return Math.round(2 * px2deg) + "px Arial"; }, // Slightly larger than words
+      text_color: 'white',
+      startX: 'center',
+      startY: 'center'
+    }
+  ],
   choices: "NO_KEYS",
-  trial_duration: 500,
+  trial_duration: 500
 };
 
 /**
@@ -243,13 +264,31 @@ let errorCountInBlock = 0; // track consecutive errors to decide when to show ke
  * Times out after 2000 ms; accuracy is coded as 1 / 0 / -1.
  */
 const ldtTrial = {
-  type: jsPsychHtmlKeyboardResponse,
-  stimulus: function () {
-    return jsPsych.timelineVariable("stimulus");
-  },
-  choices: [keyMap.word, keyMap.nonword],
-  trial_duration: 2000, // 2000 ms to respond; no response → timeout (correct = -1)
-  // Carry all item metadata and counterbalancing info into the data store
+  type: jsPsychPsychophysics,
+//making the Canvas large and transparent
+  canvas_width: 1000,
+  canvas_height: 600,
+  background_color: 'rgba(0,0,0,0)',
+
+  stimuli: [
+    {
+      obj_type: 'text',
+      content: function () {
+        return jsPsych.timelineVariable("stimulus");
+      },
+
+      font: function() {
+        let size = 1.5 * px2deg;
+        return Math.round(size) + "px Arial";
+      },
+      text_color: 'white',
+      startX: 'center',
+      startY: 'center',
+      show_start_time: 0
+    }
+      
+  ],
+
   data: function () {
     return {
       Target:            jsPsych.timelineVariable("Target"),
@@ -266,6 +305,7 @@ const ldtTrial = {
       keyAssign:         keyAssign,
       wordKey:           keyMap.word,
       nonwordKey:        keyMap.nonword,
+      measured_px2deg:   px2deg
     };
   },
   // Code accuracy and update the shared feedback variable
@@ -280,7 +320,7 @@ const ldtTrial = {
 };
 
 /* -------------------------------------------------------------------------
-   Step 6 — Feedback trial definitions
+   Step 8 — Feedback trial definitions
    ------------------------------------------------------------------------- */
 
 /**
@@ -317,42 +357,49 @@ const timeoutFeedbackNode = {
  */
 const correctnessFeedbackNode = {
   timeline: [{
-    type: jsPsychHtmlKeyboardResponse,
-    stimulus: function () {
-      if (currentTrialCorrect === 1) {
-        errorCountInBlock = 0; // Reset counter on correct answer
-        return "<p style='color:green; font-size:4em;'>&#10003;</p>";
-      } else {
-        errorCountInBlock++; // Increment on error
-
-        // Show hint only if they have made 3 or more consecutive errors
-        const showHint = errorCountInBlock >= 3;
-
-        return `
-          <div style="height: 400px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-            <div style="color:red; font-size:4em;">&#10007;</div>
-            ${showHint ? `
-              <div style="margin-top: 150px; color: #888; font-size: 1.2em;">
-                Reminder: <strong>${keyMap.word.toUpperCase()}</strong> = Word,
-                <strong>${keyMap.nonword.toUpperCase()}</strong> = Non-word
-              </div>
-            ` : ''}
-          </div>
-        `;
+    type: jsPsychPsychophysics,
+    canvas_width: 1000,
+    canvas_height: 600,
+    background_color: 'rgba(0,0,0,0)',
+    stimuli: [
+      {
+        obj_type: 'text',
+        content: function () {
+          return currentTrialCorrect === 1 ? "✓" : "✗";
+        },
+        font: function() { return Math.round(3 * px2deg) + "px Arial"; },
+        text_color: function() {
+          return currentTrialCorrect === 1 ? "green" : "red";
+        },
+        startX: 'center',
+        startY: 'center'
+      },
+      
+      {
+        obj_type: 'text',
+        content: function() {
+          if (currentTrialCorrect === 0 && errorCountInBlock >= 3) {
+            return `Reminder: ${keyMap.word.toUpperCase()}=Word, ${keyMap.nonword.toUpperCase()}=Non-word`;
+          }
+          return "";
+        },
+        font: "20px Arial",
+        text_color: "#888",
+        startX: 'center',
+        startY: function() { return 150; } // Positioned below the center
       }
-    },
+    ],
     choices: "NO_KEYS",
     trial_duration: function () {
       return currentTrialCorrect === 1 ? 500 : 1500;
-    },
+    }
   }],
   conditional_function: function () {
     return currentTrialCorrect !== -1;
-  },
+  }
 };
-
 /* -------------------------------------------------------------------------
-   Step 7 — Break screen between blocks
+   Step 9 — Break screen between blocks
    ------------------------------------------------------------------------- */
 const blockBreak = {
   type: jsPsychHtmlKeyboardResponse,
@@ -367,7 +414,7 @@ const blockBreak = {
 };
 
 /* -------------------------------------------------------------------------
-   Step 8 — Assemble timeline and run
+   Step 10 — Assemble timeline and run
    ------------------------------------------------------------------------- */
 
 /**
@@ -419,7 +466,17 @@ function applyVideoCondition(condition) {
    ------------------------------------------------------------------------- */
 function runExperiment(practiceMap, mainMap) {
   const blockOrder = blockOrderMap[group];
-  const timeline = [instructions];
+  const timeline = [
+    instructions, 
+    chinrest,
+    {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus :'<div style="background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px;">' +
+                '<p>Calibration complete. Prepare for the practice trials.</p>' +
+                '<p>Press any key to begin.</p></div>'
+    }
+  ];                
+  
 
   // 1. Determine practice condition (matches first block of their group)
   const firstList = blockOrder[0];
@@ -468,32 +525,31 @@ function runExperiment(practiceMap, mainMap) {
     timeline: [
       {
         type: jsPsychHtmlKeyboardResponse,
-        stimulus: `
-           <div style="max-width: 600px; margin: auto; line-height: 1.6;">
-             <h2 style="margin-bottom: 30px;">Practice</h2>
-             <p style="margin-bottom: 25px;">We will start with 17 practice trials to get you used to the keys.</p>
-             <p style="margin-bottom: 40px;">
-               Remember:<br>
-               Press <strong>${keyMap.word.toUpperCase()}</strong> if it is a <strong>WORD</strong>.<br>
-               Press <strong>${keyMap.nonword.toUpperCase()}</strong> if it is <strong>NOT A WORD</strong>.
+        stimulus: function() {
+          return `
+           <div style="background: rgba(0,0,0,0.8); padding: 40px; border-radius: 15px; max-width: 600px;">
+             <h2>Practice Phase</h2>
+             <p>Remember:<br>
+               <strong>${keyMap.word.toUpperCase()}</strong> = WORD<br>
+               <strong>${keyMap.nonword.toUpperCase()}</strong> = NOT A WORD
              </p>
-             <p>Press any key to begin the practice block.</p>
-           </div>
-        `
-      }, 
+             <p>Press any key to begin.</p>
+           </div>`;
+        }, 
+      },
       practiceBlock,
       {
         type: jsPsychHtmlKeyboardResponse,
         stimulus: function() {
-          const score = practiceCorrect;
-          const total = practiceItems.length;
-          const passed = score >= 13; // 75% of 17 is 12.75
-
-          if (passed) {
-            return `<div style="color:green;"><h2>Practice Complete!</h2><p>You got ${score} out of ${total} correct.</p><p>Great job. Press any key to start the main experiment.</p></div>`;
-          } else {
-            return `<div style="color:red;"><h2>Practice Incomplete</h2><p>You got ${score} out of ${total} correct.</p><p>You need at least 13 correct (75%) to continue. Let's try again.</p><p>Press any key to restart practice.</p></div>`;
-          }
+          const passed = practiceCorrect >= 13;
+          const color = passed ? "green" : "red";
+          const msg = passed ? "Great job. Press any key to start the experiment." : "You need 75% correct. Let's try again.";
+          
+          return `<div style="background: rgba(0,0,0,0.8); padding: 40px; border-radius: 15px; color:${color};">
+                    <h2>Practice ${passed ? 'Complete' : 'Incomplete'}</h2>
+                    <p>Score: ${practiceCorrect} / ${practiceItems.length}</p>
+                    <p>${msg}</p>
+                  </div>`;
         },
         on_finish: function() {
           // Reset counter if they have to try again
@@ -512,7 +568,7 @@ function runExperiment(practiceMap, mainMap) {
   // Add the practice gate to the timeline
   timeline.push(practiceLoop);
 
-  // 3. Assemble Main Experiment Blocks (Your original loop)
+  // 3. Assemble Main Experiment Blocks
   blockOrder.forEach(function (listKey, index) {
     const items = mainMap[listKey] || [];
     //const smallItems = items.slice(0, 3);
@@ -526,7 +582,7 @@ function runExperiment(practiceMap, mainMap) {
           data: function() {
             return {
               ...ldtTrial.data(), 
-              is_practice: false // mark as real data for Step 1 filter
+              is_practice: false 
             };
           }
         }, 
@@ -558,7 +614,7 @@ function runExperiment(practiceMap, mainMap) {
   }
 }
 /* -------------------------------------------------------------------------
-   Step 9 — Entry point
+   Step 11 — Entry point
    ------------------------------------------------------------------------- */
 
 /**
@@ -581,9 +637,7 @@ function runExperiment(practiceMap, mainMap) {
 //      console.error("Failed to load stimuli:", err);
 //    });
 
-/* -------------------------------------------------------------------------
-   Step 9 — Entry point (Updated for Parallel Loading)
-   ------------------------------------------------------------------------- */
+
 function start() {
   // Load both files in parallel
   Promise.all([

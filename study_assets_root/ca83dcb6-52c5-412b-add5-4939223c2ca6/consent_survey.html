@@ -2,28 +2,36 @@
 <html>
 <head>
     <title>Consent and Screening</title>
-    <!-- jsPsych v7 and CSS -->
-    <script src="https://unpkg.com/jspsych@7.3.4"></script>
-    <link href="https://unpkg.com/jspsych@7.3.4/css/jspsych.css" rel="stylesheet" type="text/css" />
+    <!-- jsPsych v8 and CSS -->
+     <link href="https://unpkg.com/jspsych@8.0.0/css/jspsych.css" rel="stylesheet" type="text/css" crossorigin="anonymous" />
+     <script src="https://unpkg.com/jspsych@8.0.0/dist/index.browser.min.js" crossorigin="anonymous"></script>
     
     <!-- Survey Plugins -->
-    <script src="https://unpkg.com/@jspsych/plugin-survey-multi-choice@1.1.3"></script>
-    <script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.3"></script>
-    <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.1.3"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-survey-multi-choice@2.0.0" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-survey-text@2.0.0" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-button-response@2.0.0" crossorigin="anonymous"></script>
 
     <!-- JATOS -->
     <script src="jatos.js"></script>
 
     <style>
-        body { background-color: #222; color: #eee; font-family: sans-serif; }
-        .jspsych-content { max-width: 700px; text-align: left; }
-        /* Style for better readability on dark background */
-        .jspsych-survey-multi-choice-question { margin-bottom: 2em; }
+        body { background-color: #222; color: #eee; font-family: sans-serif; margin: 0; padding: 0; }
+        .jspsych-display-element {
+            background-color: transparent !important;}
+
+        .jspsych-content { 
+             max-width: 800px; 
+             text-align: left; 
+             background: rgba(34, 34, 34, 0.9); /* Slight background to make text pop */
+             padding: 2em;
+             border-radius: 10px;
+         }
+        .jspsych-survey-multi-choice-question { margin-bottom: 2.5em; }
     </style>
 </head>
 <body>
-    <div id="jspsych-target"></div>
-    <!-- Load the brain of this component -->
+    <div id="jspsych-target" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
+    
     <script src="js/survey_logic.js"></script>
 </body>
 </html>
