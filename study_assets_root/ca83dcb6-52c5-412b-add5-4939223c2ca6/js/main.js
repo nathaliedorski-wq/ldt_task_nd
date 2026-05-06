@@ -1,13 +1,13 @@
 /* =========================================================================
    Lexical Decision Task — main.js
-   Requires: jsPsych v7, @jspsych/plugin-html-keyboard-response, @jspych/chinrest-plugin
+   Requires: jsPsych v8, @jspsych/plugin-html-keyboard-response, @jspych/chinrest-plugin
              @jspsych/plugin-preload, @jspsych/psychophysics-plugin, PapaParse, (optional) jatos.js
    ========================================================================= */
 
-/* -------------------------------------------------------------------------
+/* ---------------------------------------ss----------------------------------
    Step 1 — Initialise jsPsych + add global variable to store physical scaling 
    ------------------------------------------------------------------------- */
-let px2deg = 1;
+let px2deg = 30;
 
 const jsPsych = initJsPsych({
   display_element: 'jspsych-target',
@@ -147,8 +147,10 @@ function loadStimuli(url) { // Added 'url' here
         try {
         results.data.forEach(function (row) {
           // Use stimulus_list as the block key, fall back to Set
+          //const rawKey = (row["stimulus_list"] || row["Set"] || "").toString().trim();
           const rawKey = (row["stimulus_list"] || row["Set"] || "").toString().trim();
-          const key = rawKey || "unknown";
+          //const key = rawKey || "unknown";
+          const key = rawKey || "practice";
           if (!blockMap[key]) blockMap[key] = [];
 
           const target   = row["Target"].trim();
@@ -274,7 +276,7 @@ const ldtTrial = {
     {
       obj_type: 'text',
       content: function () {
-        return jsPsych.timelineVariable("stimulus");
+        return jsPsych.timelineVariable("Target");
       },
 
       font: function() {
@@ -316,7 +318,14 @@ const ldtTrial = {
       data.correct = data.response === data.corr_ans ? 1 : 0;
     }
     currentTrialCorrect = data.correct;
-  },
+
+    // Fixed: Logic is now INSIDE the function
+    if (data.correct === 0) { 
+       errorCountInBlock++; 
+    } else if (data.correct === 1) {
+       errorCountInBlock = 0; 
+    }
+  } 
 };
 
 /* -------------------------------------------------------------------------
@@ -466,6 +475,8 @@ function applyVideoCondition(condition) {
    ------------------------------------------------------------------------- */
 function runExperiment(practiceMap, mainMap) {
   const blockOrder = blockOrderMap[group];
+  console.log("Practice Data Loaded:", practiceMap); // THE SPY
+  console.log("Main Data Loaded:", mainMap);         // THE SPY
   const timeline = [
     instructions, 
     chinrest,
@@ -483,7 +494,7 @@ function runExperiment(practiceMap, mainMap) {
   const practiceCondition = conditionMap[firstList];
 
   // 2. Setup Practice Trials Logic
-  const practiceItems = practiceMap["unknown"] || []; // Practice CSV uses default key "unknown"
+  const practiceItems = practiceMap["practice"] || []; // Practice CSV uses default key "unknown"
   let practiceCorrect = 0; // Counter for the 75% gate
 
   const practiceBlock = {
@@ -551,11 +562,17 @@ function runExperiment(practiceMap, mainMap) {
                     <p>${msg}</p>
                   </div>`;
         },
-        on_finish: function() {
+        on_finish: function(data) {
           // Reset counter if they have to try again
           if (practiceCorrect < 13) {
             practiceCorrect = 0;
           }
+          if (data.correct === 0) { 
+            errorCountInBlock++; 
+          } else if (data.correct === 1) {
+            errorCountInBlock = 0;
+          }
+
         }
       }
     ],
