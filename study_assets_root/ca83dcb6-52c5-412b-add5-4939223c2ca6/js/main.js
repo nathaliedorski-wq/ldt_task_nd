@@ -260,6 +260,7 @@ const fixationTrial = {
  */
 let currentTrialCorrect = null;
 let errorCountInBlock = 0; // track consecutive errors to decide when to show key reminder
+let currentTarget = "";  // Variable intermédiaire globale
 
 /**
  * Main LDT trial.
@@ -272,12 +273,23 @@ const ldtTrial = {
   canvas_height: 600,
   background_color: 'rgba(0,0,0,0)',
 
+  trial_duration: 2000,
+  choices: [keyMap.word, keyMap.nonword],
+
+    on_start: function(trial) {
+    // En v8, trial.data est une fonction, pas encore un objet
+    // On lit directement depuis la timeline variable évaluée
+    const allData = jsPsych.data.get().last(1).values()[0];
+    
+    // Modifier directement le stimulus dans trial
+    trial.stimuli[0].content = jsPsych.evaluateTimelineVariable("Target");
+    console.log("WORD:", trial.stimuli[0].content);
+  },
+
   stimuli: [
     {
       obj_type: 'text',
-      content: function () {
-        return jsPsych.timelineVariable("Target");
-      },
+      content: "placeholder",  // ← valeur fixe, remplacée dans on_start
 
       font: function() {
         let size = 1.5 * px2deg;
@@ -675,4 +687,4 @@ if (typeof jatos !== "undefined") {
   jatos.onLoad(start);
 } else {
   start();
-}
+} 
