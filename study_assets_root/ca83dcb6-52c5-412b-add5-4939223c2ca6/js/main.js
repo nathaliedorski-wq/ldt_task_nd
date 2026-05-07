@@ -228,6 +228,20 @@ const instructions = {
   choices: "ALL_KEYS",
 };
 
+/** Custom text screen between instructions and practice */
+const customFillerText = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `
+    <div style="background: rgba(0,0,0,0.8); padding: 40px; border-radius: 15px; max-width: 700px;">
+      <h2> Information</h2>
+      <p> Thank you for taking part in this experiment. Before starting, we need to calibrate by measurig your distance to your screen. Please follow the instructions. </p>
+      <p>Press any key to continue.</p>
+    </div>
+  `,
+  choices: "ALL_KEYS",
+};
+
+
 /** 500 ms fixation / gaze target shown before each word */
 const fixationTrial = {
   type: jsPsychPsychophysics,
@@ -260,7 +274,7 @@ const fixationTrial = {
  */
 let currentTrialCorrect = null;
 let errorCountInBlock = 0; // track consecutive errors to decide when to show key reminder
-let currentTarget = "";  // Variable intermédiaire globale
+let currentTarget = "";  // Intermediate variable 
 
 /**
  * Main LDT trial.
@@ -277,11 +291,8 @@ const ldtTrial = {
   choices: [keyMap.word, keyMap.nonword],
 
     on_start: function(trial) {
-    // En v8, trial.data est une fonction, pas encore un objet
-    // On lit directement depuis la timeline variable évaluée
+    // In v8, trial.data is a function, not yet an object
     const allData = jsPsych.data.get().last(1).values()[0];
-    
-    // Modifier directement le stimulus dans trial
     trial.stimuli[0].content = jsPsych.evaluateTimelineVariable("Target");
     console.log("WORD:", trial.stimuli[0].content);
   },
@@ -289,7 +300,7 @@ const ldtTrial = {
   stimuli: [
     {
       obj_type: 'text',
-      content: "placeholder",  // ← valeur fixe, remplacée dans on_start
+      content: "placeholder",  // ← fixed value, replaced in on_start
 
       font: function() {
         let size = 1.5 * px2deg;
@@ -490,8 +501,10 @@ function runExperiment(practiceMap, mainMap) {
   console.log("Practice Data Loaded:", practiceMap); // THE SPY
   console.log("Main Data Loaded:", mainMap);         // THE SPY
   const timeline = [
-    instructions, 
+    customFillerText,
     chinrest,
+    instructions, 
+    
     {
       type: jsPsychHtmlKeyboardResponse,
       stimulus :'<div style="background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px;">' +
