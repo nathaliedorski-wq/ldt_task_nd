@@ -1,0 +1,77 @@
+*   [33m6045559[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32minstructions-reorder[m[33m, [m[1;31morigin/instructions-reorder[m[33m)[m Fixed binary conflict by accepting supervisor database
+[31m|[m[32m\[m  
+[31m|[m *   [33m5ddb87d[m[33m ([m[1;31msupervisor/main[m[33m, [m[1;31msupervisor/HEAD[m[33m)[m Merge pull request #11 from nathaliedorski-wq/instructions-reorder
+[31m|[m [33m|[m[34m\[m  
+[31m|[m [33m|[m * [33m417bbd8[m changes to make devcontainer work better with the experiment
+* [33m|[m [34m|[m [33m5edff5b[m saving my work before merging supervisor updates
+[34m|[m [33m|[m[34m/[m  
+[34m|[m[34m/[m[33m|[m   
+* [33m|[m [33m5dc692b[m[33m ([m[1;31mmy-fork/instructions-reorder[m[33m)[m reorder instructions and add filler text
+* [33m|[m [33mefa3b31[m[33m ([m[1;31morigin/master[m[33m, [m[1;32mmaster[m[33m)[m Final trial fixes and timeout added
+* [33m|[m [33m022b3a8[m Help
+* [33m|[m [33mc9cdd24[m[33m ([m[1;31msupervisor/final-ldt-implementation[m[33m, [m[1;31morigin/final-ldt-implementation[m[33m)[m Migrate to jsPsych v8, add Psychophysics and Virtual Chinrest
+* [33m|[m [33mabcb2c9[m Implement counterbalancing, practice loop, and JATOS integration
+* [33m|[m [33mefa8426[m[33m ([m[1;31msupervisor/updates-counterbalancing-hints-break[m[33m, [m[1;31morigin/updates-counterbalancing-hints-break[m[33m, [m[1;32mupdates-counterbalancing-hints-break[m[33m)[m Restored files to correct directory and fixed structure
+[33m|[m[33m/[m  
+[33m|[m * [33m8af612a[m[33m ([m[1;35mrefs/stash[m[33m)[m WIP on main: 40a0f43 move everything into new jatos folder for easier testing, update devcontainer and docker-compose.yml
+[33m|[m[33m/[m[36m|[m 
+[33m|[m * [33me332002[m index on main: 40a0f43 move everything into new jatos folder for easier testing, update devcontainer and docker-compose.yml
+[33m|[m[33m/[m  
+* [33m40a0f43[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m move everything into new jatos folder for easier testing, update devcontainer and docker-compose.yml
+*   [33madbfdfe[m Merge pull request #9 from bernhardangele/updates-counterbalancing-hints-break
+[1;31m|[m[1;32m\[m  
+[1;31m|[m *   [33mcffbdc5[m Merge remote-tracking branch 'origin/main' into updates-counterbalancing-hints-break
+[1;31m|[m [1;33m|[m[1;31m\[m  
+[1;31m|[m [1;33m|[m[1;31m/[m  
+[1;31m|[m[1;31m/[m[1;33m|[m   
+* [1;33m|[m   [33m9ceb201[m Merge pull request #7 from bernhardangele/copilot/verify-counterbalancing-and-add-responses
+[1;35m|[m[1;36m\[m [1;33m\[m  
+[1;35m|[m * [1;33m|[m [33mf07396d[m[33m ([m[1;31msupervisor/copilot/verify-counterbalancing-and-add-responses[m[33m, [m[1;31morigin/copilot/verify-counterbalancing-and-add-responses[m[33m)[m Fix: explicitly handle WORD/NONWORD in corrAns, reject on unknown StimulusType
+[1;35m|[m * [1;33m|[m [33m2429a71[m Fix: store derived stimulus_list key in trial data, preserve raw CSV value
+[1;35m|[m * [1;33m|[m [33m9848303[m Add comment documenting 2000ms trial timeout value
+[1;35m|[m * [1;33m|[m [33m414ff61[m Resolve merge conflicts and fix condition-order counterbalancing
+[1;35m|[m * [1;33m|[m   [33m9bbc133[m Merge origin/main: combine 3×2 counterbalancing with fixation/timeout/feedback
+[1;35m|[m [31m|[m[1;35m\[m [1;33m\[m  
+[1;35m|[m [31m|[m[1;35m/[m [1;33m/[m  
+[1;35m|[m[1;35m/[m[31m|[m [1;33m|[m   
+[1;35m|[m * [1;33m|[m [33meeef0df[m Add comment documenting jsPsych simulate mode values
+[1;35m|[m * [1;33m|[m [33mbeaa755[m Implement 3×2 counterbalancing and simulation test mode
+[1;35m|[m [32m|[m * [33m7ab74f4[m Modified study components for LDT task
+[1;35m|[m [32m|[m[1;35m/[m  
+[1;35m|[m[1;35m/[m[32m|[m   
+* [32m|[m   [33m55e974f[m[33m ([m[1;31msupervisor/instructions-update[m[33m)[m Merge pull request #6 from bernhardangele/copilot/add-behavioral-features-lexical-decision-experimen
+[32m|[m[34m\[m [32m\[m  
+[32m|[m [34m|[m[32m/[m  
+[32m|[m[32m/[m[34m|[m   
+[32m|[m * [33mc24b8a4[m change timings, remove words from feedback (just leave emoji)
+[32m|[m * [33m33d652e[m fix: address code review feedback (CSV validation, accessibility symbols, comments)
+[32m|[m * [33m0822f5a[m feat: block-based LDT with fixation, timeout, and per-response feedback
+[32m|[m[32m/[m  
+* [33mac65eb6[m fix issue with the experiment not starting/pre-loading video
+*   [33mfd1b2e4[m Merge pull request #5 from bernhardangele/copilot/fix-typeerror-when-starting-experiment
+[35m|[m[36m\[m  
+[35m|[m * [33m9398fa7[m[33m ([m[1;31msupervisor/copilot/fix-typeerror-when-starting-experiment[m[33m, [m[1;31morigin/copilot/fix-typeerror-when-starting-experiment[m[33m)[m Fix NaN group causing conditionMap TypeError at startup
+[35m|[m[35m/[m  
+*   [33m2cbe307[m Merge pull request #4 from bernhardangele/copilot/fix-404-errors-stimuli-loading
+[1;31m|[m[1;32m\[m  
+[1;31m|[m * [33m99bea32[m[33m ([m[1;31msupervisor/copilot/fix-404-errors-stimuli-loading[m[33m, [m[1;31morigin/copilot/fix-404-errors-stimuli-loading[m[33m)[m Create stimuli.csv by combining the three stimulus list CSVs with a Set column
+[1;31m|[m[1;31m/[m  
+* [33m22af56c[m add new stimulus files
+[1;32m|[m * [33mf71597a[m[33m ([m[1;31msupervisor/copilot/add-experiment-features[m[33m, [m[1;31morigin/copilot/add-experiment-features[m[33m)[m Align JS style and finalize accessible feedback markup
+[1;32m|[m * [33m53a1dda[m Refine feedback accessibility and centralize trial timing constants
+[1;32m|[m * [33m5483f1a[m Implement blocked Latin-square flow with fixation, timeout, and feedback
+[1;32m|[m[1;32m/[m  
+* [33mc199bed[m add new stimuli (3 lists)
+* [33ma4b558e[m fix so that the video actually shows
+* [33m512aba1[m adapt folder structure for use with JATOS
+*   [33m4c411ce[m Merge pull request #2 from bernhardangele/copilot/implement-jatos-testing-strategy
+[1;34m|[m[1;35m\[m  
+[1;34m|[m * [33me988b73[m[33m ([m[1;31msupervisor/copilot/implement-jatos-testing-strategy[m[33m, [m[1;31morigin/copilot/implement-jatos-testing-strategy[m[33m)[m feat: add devcontainer config and fix video filename
+[1;34m|[m[1;34m/[m  
+* [33m88ef63e[m add background video
+*   [33m259397b[m Merge pull request #1 from bernhardangele/copilot/scaffold-lexical-decision-task
+[1;36m|[m[31m\[m  
+[1;36m|[m * [33md79f5cc[m[33m ([m[1;31msupervisor/copilot/scaffold-lexical-decision-task[m[33m, [m[1;31morigin/copilot/scaffold-lexical-decision-task[m[33m)[m Scaffold complete Lexical Decision Task experiment (jsPsych v7 + JATOS)
+[1;36m|[m * [33mcc7377a[m Initial plan
+[1;36m|[m[1;36m/[m  
+* [33m3ac2a21[m Initial commit
