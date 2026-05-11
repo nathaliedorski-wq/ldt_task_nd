@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   # The VS Code dev environment
-  dev-workspace:
+  jspsych-dev-workspace:
     image: mcr.microsoft.com/devcontainers/javascript-node:20
     volumes:
       # Map the local workspace root to /workspace in the container
