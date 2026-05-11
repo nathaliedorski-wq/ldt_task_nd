@@ -112,7 +112,37 @@ const chinrest = {
   blindspot_reps: 3,
   resize_units: "none", 
   pixels_per_unit: 100,
+  
+  on_start: function() {
+    const style = document.createElement('style');
+    style.id = 'chinrest-white-bg';
+    style.innerHTML = `
+      /* 1. Force white background and REMOVE ALL BLUR FILTERS */
+      body, .jspsych-display-element, #jspsych-target, .jspsych-content-wrapper {
+        background: white !important;
+        background-image: none !important;
+        filter: none !important; 
+        backdrop-filter: none !important;
+      }
+      /* 2. Hide the Subway Surfers video */
+      video, .background-video, iframe {
+        display: none !important;
+      }
+      /* 3. Make text sharp and black */
+      .jspsych-content, p, span, div, h2 {
+        color: black !important;
+        filter: none !important; 
+        text-shadow: none !important;
+        -webkit-filter: blur(0px) !important; /* Force Safari to stop blurring */
+      }
+    `;
+    document.head.appendChild(style);
+  },
+
   on_finish: function(data) {
+    const style = document.getElementById('chinrest-white-bg');
+    if (style) style.remove();
+
     px2deg = data.px2deg;
     console.log("Measured px2deg:", px2deg);
   }
@@ -228,6 +258,20 @@ const instructions = {
   choices: "ALL_KEYS",
 };
 
+/** Custom text screen between instructions and practice */
+const customFillerText = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `
+    <div style="background: rgba(0,0,0,0.8); padding: 40px; border-radius: 15px; max-width: 700px;">
+      <h2> Information</h2>
+      <p> Thank you for taking part in this experiment. Before starting, we need to calibrate by measurig your distance to your screen. Please follow the instructions. </p>
+      <p>Press any key to continue.</p>
+    </div>
+  `,
+  choices: "ALL_KEYS",
+};
+
+
 /** 500 ms fixation / gaze target shown before each word */
 const fixationTrial = {
   type: jsPsychPsychophysics,
@@ -236,13 +280,30 @@ const fixationTrial = {
   background_color: 'rgba(0,0,0,0)',
   stimuli: [
     {
-      obj_type: 'text',
-      content: '+',
-      font: function() { return Math.round(2 * px2deg) + "px Arial"; }, // Slightly larger than words
-      text_color: 'white',
-      startX: 'center',
-      startY: 'center'
+  obj_type: 'manual',
+  drawFunc: function(stimulus, canvas, context) {
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const content = currentTrialCorrect === 1 ? "✓" : "✗";
+    const fillColor = currentTrialCorrect === 1 ? "#00FF00" : "#FF0000";
+    const fontSize = Math.round(3 * px2deg);
+
+    context.font = `${fontSize}px Arial`;
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+
+    // Black outline: draw offset in 4 directions
+    const offset = Math.max(3, Math.round(fontSize * 0.06));
+    context.fillStyle = "black";
+    for (const [dx, dy] of [[-offset,0],[offset,0],[0,-offset],[0,offset]]) {
+      context.fillText(content, centerX + dx, centerY + dy);
     }
+
+    // Main text on top
+    context.fillStyle = fillColor;
+    context.fillText(content, centerX, centerY);
+  }
+}
   ],
   choices: "NO_KEYS",
   trial_duration: 500
@@ -260,7 +321,7 @@ const fixationTrial = {
  */
 let currentTrialCorrect = null;
 let errorCountInBlock = 0; // track consecutive errors to decide when to show key reminder
-let currentTarget = "";  // Variable intermédiaire globale
+let currentTarget = "";  // Intermediate variable 
 
 /**
  * Main LDT trial.
@@ -277,32 +338,26 @@ const ldtTrial = {
   choices: [keyMap.word, keyMap.nonword],
 
     on_start: function(trial) {
-    // En v8, trial.data est une fonction, pas encore un objet
-    // On lit directement depuis la timeline variable évaluée
-    const allData = jsPsych.data.get().last(1).values()[0];
+  const allData = jsPsych.data.get().last(1).values()[0];
+  trial.stimuli[0].content = jsPsych.evaluateTimelineVariable("Target");
+  console.log("WORD:", trial.stimuli[0].content);
+},
+
+stimuli: [
+  {
+    obj_type: 'text',
+    content: "placeholder",  // ← fixed value, replaced in on_start
+    font: function() {
+      let size = 1.5 * px2deg;
+      return Math.round(size) + "px Arial";
+    },
+    text_color: 'white',
+    startX: 'center',
+    startY: 'center',
+    show_start_time: 0
+  }
+],
     
-    // Modifier directement le stimulus dans trial
-    trial.stimuli[0].content = jsPsych.evaluateTimelineVariable("Target");
-    console.log("WORD:", trial.stimuli[0].content);
-  },
-
-  stimuli: [
-    {
-      obj_type: 'text',
-      content: "placeholder",  // ← valeur fixe, remplacée dans on_start
-
-      font: function() {
-        let size = 1.5 * px2deg;
-        return Math.round(size) + "px Arial";
-      },
-      text_color: 'white',
-      startX: 'center',
-      startY: 'center',
-      show_start_time: 0
-    }
-      
-  ],
-
   data: function () {
     return {
       Target:            jsPsych.timelineVariable("Target"),
@@ -382,32 +437,30 @@ const correctnessFeedbackNode = {
     canvas_width: 1000,
     canvas_height: 600,
     background_color: 'rgba(0,0,0,0)',
+    on_start: function(trial) {
+      const isCorrect = currentTrialCorrect === 1;
+      trial.stimuli[0].content    = isCorrect ? "✓" : "✗";
+      trial.stimuli[0].text_color = isCorrect ? "#00FF00" : "#FF0000";
+      trial.stimuli[1].content    = (currentTrialCorrect === 0 && errorCountInBlock >= 3)
+        ? `Reminder: ${keyMap.word.toUpperCase()}=Word, ${keyMap.nonword.toUpperCase()}=Non-word`
+        : "";
+    },
     stimuli: [
       {
         obj_type: 'text',
-        content: function () {
-          return currentTrialCorrect === 1 ? "✓" : "✗";
-        },
+        content: "",           // set in on_start
         font: function() { return Math.round(3 * px2deg) + "px Arial"; },
-        text_color: function() {
-          return currentTrialCorrect === 1 ? "green" : "red";
-        },
+        text_color: "#FFFFFF", // placeholder, overwritten in on_start
         startX: 'center',
         startY: 'center'
       },
-      
       {
         obj_type: 'text',
-        content: function() {
-          if (currentTrialCorrect === 0 && errorCountInBlock >= 3) {
-            return `Reminder: ${keyMap.word.toUpperCase()}=Word, ${keyMap.nonword.toUpperCase()}=Non-word`;
-          }
-          return "";
-        },
+        content: "",           // set in on_start
         font: "20px Arial",
-        text_color: "#888",
+        text_color: "#888888",
         startX: 'center',
-        startY: function() { return 150; } // Positioned below the center
+        startY: function() { return 150; }
       }
     ],
     choices: "NO_KEYS",
@@ -490,12 +543,14 @@ function runExperiment(practiceMap, mainMap) {
   console.log("Practice Data Loaded:", practiceMap); // THE SPY
   console.log("Main Data Loaded:", mainMap);         // THE SPY
   const timeline = [
-    instructions, 
+    customFillerText,
     chinrest,
+    instructions, 
+    
     {
       type: jsPsychHtmlKeyboardResponse,
       stimulus :'<div style="background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px;">' +
-                '<p>Calibration complete. Prepare for the practice trials.</p>' +
+                '<p>The following trials will be practice trials.</p>' +
                 '<p>Press any key to begin.</p></div>'
     }
   ];                
