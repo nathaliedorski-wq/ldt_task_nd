@@ -278,32 +278,16 @@ const fixationTrial = {
   canvas_width: 1000,
   canvas_height: 600,
   background_color: 'rgba(0,0,0,0)',
+  clear_canvas: true, // This wipes the previous trial's feedback
   stimuli: [
     {
-  obj_type: 'manual',
-  drawFunc: function(stimulus, canvas, context) {
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    const content = currentTrialCorrect === 1 ? "✓" : "✗";
-    const fillColor = currentTrialCorrect === 1 ? "#00FF00" : "#FF0000";
-    const fontSize = Math.round(3 * px2deg);
-
-    context.font = `${fontSize}px Arial`;
-    context.textAlign = "center";
-    context.textBaseline = "middle";
-
-    // Black outline: draw offset in 4 directions
-    const offset = Math.max(3, Math.round(fontSize * 0.06));
-    context.fillStyle = "black";
-    for (const [dx, dy] of [[-offset,0],[offset,0],[0,-offset],[0,offset]]) {
-      context.fillText(content, centerX + dx, centerY + dy);
+      obj_type: 'text',
+      content: '+', // Just a simple plus sign
+      font: "40px Arial",
+      text_color: 'white',
+      startX: 'center',
+      startY: 'center'
     }
-
-    // Main text on top
-    context.fillStyle = fillColor;
-    context.fillText(content, centerX, centerY);
-  }
-}
   ],
   choices: "NO_KEYS",
   trial_duration: 500
@@ -481,6 +465,9 @@ const correctnessFeedbackNode = {
     choices: "NO_KEYS",
     trial_duration: function () {
       return currentTrialCorrect === 1 ? 500 : 1500;
+    },
+    on_finish: function() {
+      currentTrialCorrect = null;
     }
   }],
   conditional_function: function () {
