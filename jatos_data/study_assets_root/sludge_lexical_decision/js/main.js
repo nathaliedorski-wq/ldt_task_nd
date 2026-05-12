@@ -340,11 +340,26 @@ const ldtTrial = {
     on_start: function(trial) {
   const allData = jsPsych.data.get().last(1).values()[0];
   trial.stimuli[0].content = jsPsych.evaluateTimelineVariable("Target");
+  trial.stimuli[1].content = jsPsych.evaluateTimelineVariable("Target");
   console.log("WORD:", trial.stimuli[0].content);
 },
 
 stimuli: [
   {
+    obj_type: 'text',
+      content: "placeholder",
+      font: function() {
+        let size = 1.5 * px2deg;
+        // Adding 'bold' makes the halo slightly thicker and easier to see
+        return "bold " + Math.round(size) + "px Arial"; 
+      },
+      text_color: 'rgba(0,0,0,0.9)', // Deep shaded black/grey
+      // Offset by 2 pixels to create the depth/halo effect
+      startX: 502, 
+      startY: 302,
+      show_start_time: 0
+    },
+    {
     obj_type: 'text',
     content: "placeholder",  // ← fixed value, replaced in on_start
     font: function() {
@@ -357,7 +372,7 @@ stimuli: [
     show_start_time: 0
   }
 ],
-    
+  
   data: function () {
     return {
       Target:            jsPsych.timelineVariable("Target"),
