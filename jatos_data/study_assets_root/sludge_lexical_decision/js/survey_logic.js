@@ -2,8 +2,8 @@
    Consent and Screening — survey_logic.js (ULTRA-STABLE VERSION)
    ========================================================================= */
 
-const PROLIFIC_RETURNED_URL = "https://app.prolific.com/submissions/complete?cc=REPLACE_ME_CODE1"; 
-const PROLIFIC_SCREENOUT_URL = "https://app.prolific.com/submissions/complete?cc=REPLACE_ME_CODE2"; 
+const PROLIFIC_RETURNED_URL = "https://app.prolific.com/submissions/complete?cc=CKR4DF0X"; 
+const PROLIFIC_SCREENOUT_URL = "https://app.prolific.com/submissions/complete?cc=CSI6MIOO"; 
 
 // OUTSIDE THE BOX: We save answers here immediately to avoid "Technical Errors"
 let participantAnswers = {
