@@ -1,0 +1,105 @@
+/* -----------------------------------------------------------------------
+   Full-screen background video
+   ----------------------------------------------------------------------- */
+#distractor-video {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  z-index: -1;
+}
+/* ============================================================
+   SECTION 1: INTRO SCREENS (White Background)
+   Used by: Welcome & Information
+   ============================================================ */
+/* --- SECTION 1: GLOBAL & VIDEO --- */
+#distractor-video {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  z-index: -1;
+}
+
+/* --- SECTION 2: THE "WELCOME/PRELOAD" VIBE (Black on White) --- 
+   Use this for the Welcome Screen to match the Loading Assets screen. */
+.intro-view {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: white !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 999;
+    color: black !important;
+    text-shadow: none !important; /* No halo */
+    font-family: Arial, sans-serif;
+    text-align: center;
+    line-height: 1.6;
+}
+
+.intro-view h1 { font-size: 32px; margin-bottom: 20px; }
+.intro-view p { font-size: 20px; max-width: 800px; margin: 10px 0; }
+.prompt-footer { margin-top: 40px; font-style: italic; color: #888; }
+
+/* --- SECTION 3: THE INSTRUCTIONS (Dark Blue Theme) --- */
+.instr-view {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #111 !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 999;
+    color: white !important;
+    text-shadow: none !important;
+    font-family: Arial, sans-serif;
+}
+
+.instr-accent-box { background: rgba(52, 152, 219, 0.1); border-left: 6px solid #3498db; padding: 20px; margin: 20px 0; max-width: 700px; text-align: left; }
+.key-row { display: flex; gap: 40px; margin: 30px 0; }
+.key-card { background: #222; padding: 20px 40px; border-radius: 15px; border: 1px solid #444; text-align: center; min-width: 140px; }
+.key-val { display: block; font-size: 3.5rem; font-weight: 900; }
+.word-color { color: #00ff88; }
+.nonword-color { color: #ff4444; }
+.key-label { text-transform: uppercase; font-size: 0.9rem; color: #aaa; margin-top: 5px; display: block; }
+
+/* -----------------------------------------------------------------------
+   Stimulus / response text styling – large, legible on any background
+   ----------------------------------------------------------------------- */
+.jspsych-content {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 2rem;
+  font-weight: bold;
+  color: #ffffff;
+  /* Multi-layer text-shadow creates a strong dark halo */
+  text-shadow:
+    0 0 6px  #000,
+    0 0 10px #000,
+    2px  2px 4px #000,
+   -2px -2px 4px #000,
+    2px -2px 4px #000,
+   -2px  2px 4px #000;
+}
+
+/* Center the Psychophysics Canvas over the video */
+#jspsych-psychophysics-canvas {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: block;
+    z-index: 999;
+}

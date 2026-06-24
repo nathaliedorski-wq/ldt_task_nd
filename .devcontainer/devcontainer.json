@@ -1,7 +1,7 @@
 {
-    "name": "JATOS Dev Environment",
+    "name": "JSPsych Dev Environment",
     "dockerComposeFile": "docker-compose.yml",
-    "service": "dev-workspace", 
+    "service": "jspsych-dev-workspace", 
     "workspaceFolder": "/workspace",
     "customizations": {
         "vscode": {
